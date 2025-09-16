@@ -14,145 +14,65 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TransactionsController = void 0;
 const common_1 = require("@nestjs/common");
-const mongoose_1 = require("@nestjs/mongoose");
-const mongoose_2 = require("mongoose");
+const transactions_service_1 = require("./transactions.service");
 let TransactionsController = class TransactionsController {
-    constructor(orderModel) {
-        this.orderModel = orderModel;
+    constructor(transactionsService) {
+        this.transactionsService = transactionsService;
     }
-    async all(query) {
-        const page = Number(query.page) || 1;
-        const limit = Number(query.limit) || 20;
-        const skip = (page - 1) * limit;
-        const sortField = query.sort || 'order_status.payment_time';
-        const order = query.order === 'asc' ? 1 : -1;
-        const matchStage = {};
-        if (query.status)
-            matchStage['order_status.status'] = query.status;
-        if (query.school_id)
-            matchStage['school_id'] = query.school_id;
-        const pipeline = [
-            {
-                $lookup: {
-                    from: 'orderstatuses',
-                    localField: 'custom_order_id',
-                    foreignField: 'custom_order_id',
-                    as: 'order_status_arr',
-                },
-            },
-            { $unwind: { path: '$order_status_arr', preserveNullAndEmptyArrays: true } },
-            {
-                $replaceRoot: {
-                    newRoot: {
-                        $mergeObjects: ['$order_status_arr', '$$ROOT'],
-                    },
-                },
-            },
-            {
-                $project: {
-                    _id: 0,
-                    collect_id: '$custom_order_id',
-                    school_id: '$school_id',
-                    gateway: '$gateway_name',
-                    order_amount: '$order_amount',
-                    transaction_amount: '$transaction_amount',
-                    status: '$status',
-                    custom_order_id: '$custom_order_id',
-                    payment_time: '$payment_time',
-                },
-            },
-        ];
-        if (Object.keys(matchStage).length) {
-            pipeline.splice(0, 0, { $match: matchStage });
-        }
-        pipeline.push({ $sort: { [sortField]: order } }, { $skip: skip }, { $limit: limit });
-        const data = await this.orderModel.aggregate(pipeline);
-        return { page, limit, data };
+    async getAll(page = '1', limit = '10', status, school_id, sort, order, from, to, search) {
+        const p = Number(page) || 1;
+        const l = Number(limit) || 10;
+        return this.transactionsService.getTransactions({
+            page: p,
+            limit: l,
+            status,
+            school_id,
+            sort,
+            order,
+            from,
+            to,
+            search,
+        });
     }
-    async bySchool(schoolId, query) {
-        const pipeline = [
-            { $match: { school_id: schoolId } },
-            {
-                $lookup: {
-                    from: 'orderstatuses',
-                    localField: 'custom_order_id',
-                    foreignField: 'custom_order_id',
-                    as: 'order_status_arr',
-                },
-            },
-            { $unwind: { path: '$order_status_arr', preserveNullAndEmptyArrays: true } },
-            {
-                $project: {
-                    _id: 0,
-                    collect_id: '$custom_order_id',
-                    school_id: '$school_id',
-                    gateway: '$gateway_name',
-                    order_amount: '$order_status_arr.order_amount',
-                    transaction_amount: '$order_status_arr.transaction_amount',
-                    status: '$order_status_arr.status',
-                    custom_order_id: '$custom_order_id',
-                    payment_time: '$order_status_arr.payment_time',
-                },
-            },
-        ];
-        const data = await this.orderModel.aggregate(pipeline);
-        return data;
+    async bySchool(schoolId) {
+        return this.transactionsService.getBySchool(schoolId);
     }
-    async status(custom_order_id) {
-        const pipeline = [
-            {
-                $match: { custom_order_id },
-            },
-            {
-                $lookup: {
-                    from: 'orderstatuses',
-                    localField: 'custom_order_id',
-                    foreignField: 'custom_order_id',
-                    as: 'order_status_arr',
-                },
-            },
-            { $unwind: { path: '$order_status_arr', preserveNullAndEmptyArrays: true } },
-            {
-                $project: {
-                    _id: 0,
-                    custom_order_id: '$custom_order_id',
-                    status: '$order_status_arr.status',
-                    order_amount: '$order_status_arr.order_amount',
-                    transaction_amount: '$order_status_arr.transaction_amount',
-                    payment_time: '$order_status_arr.payment_time',
-                },
-            },
-        ];
-        const [result] = await this.orderModel.aggregate(pipeline);
-        return result || { error: 'not_found' };
+    async status(custom) {
+        return this.transactionsService.getStatusByCustom(custom);
     }
 };
 exports.TransactionsController = TransactionsController;
 __decorate([
     (0, common_1.Get)(),
-    __param(0, (0, common_1.Query)()),
+    __param(0, (0, common_1.Query)('page')),
+    __param(1, (0, common_1.Query)('limit')),
+    __param(2, (0, common_1.Query)('status')),
+    __param(3, (0, common_1.Query)('school_id')),
+    __param(4, (0, common_1.Query)('sort')),
+    __param(5, (0, common_1.Query)('order')),
+    __param(6, (0, common_1.Query)('from')),
+    __param(7, (0, common_1.Query)('to')),
+    __param(8, (0, common_1.Query)('search')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object, String, String, String, String, String, String, String]),
     __metadata("design:returntype", Promise)
-], TransactionsController.prototype, "all", null);
+], TransactionsController.prototype, "getAll", null);
 __decorate([
     (0, common_1.Get)('school/:schoolId'),
     __param(0, (0, common_1.Param)('schoolId')),
-    __param(1, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], TransactionsController.prototype, "bySchool", null);
 __decorate([
-    (0, common_1.Get)('/status/:custom_order_id'),
+    (0, common_1.Get)('status/:custom_order_id'),
     __param(0, (0, common_1.Param)('custom_order_id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], TransactionsController.prototype, "status", null);
 exports.TransactionsController = TransactionsController = __decorate([
     (0, common_1.Controller)('transactions'),
-    __param(0, (0, mongoose_1.InjectModel)('Order')),
-    __metadata("design:paramtypes", [mongoose_2.Model])
+    __metadata("design:paramtypes", [transactions_service_1.TransactionsService])
 ], TransactionsController);
 //# sourceMappingURL=transactions.controller.js.map

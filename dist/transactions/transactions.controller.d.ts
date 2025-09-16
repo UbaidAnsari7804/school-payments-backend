@@ -1,12 +1,13 @@
-import { Model } from 'mongoose';
+import { TransactionsService } from './transactions.service';
 export declare class TransactionsController {
-    private orderModel;
-    constructor(orderModel: Model<any>);
-    all(query: any): Promise<{
+    private readonly transactionsService;
+    constructor(transactionsService: TransactionsService);
+    getAll(page?: string, limit?: string, status?: string, school_id?: string, sort?: string, order?: string, from?: string, to?: string, search?: string): Promise<{
+        data: any;
         page: number;
         limit: number;
-        data: any[];
+        total: any;
     }>;
-    bySchool(schoolId: string, query: any): Promise<any[]>;
-    status(custom_order_id: string): Promise<any>;
+    bySchool(schoolId: string): Promise<any>;
+    status(custom: any): Promise<any>;
 }

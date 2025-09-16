@@ -8,9 +8,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
-const mongoose_1 = require("@nestjs/mongoose");
 const config_1 = require("@nestjs/config");
+const mongoose_1 = require("@nestjs/mongoose");
 const auth_module_1 = require("./auth/auth.module");
+const orders_module_1 = require("./orders/orders.module");
+const order_status_module_1 = require("./order-status/order-status.module");
+const payments_module_1 = require("./payments/payments.module");
+const webhook_module_1 = require("./webhook/webhook.module");
+const transactions_module_1 = require("./transactions/transactions.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -18,8 +23,13 @@ exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
             config_1.ConfigModule.forRoot({ isGlobal: true }),
-            mongoose_1.MongooseModule.forRoot(process.env.MONGO_URI),
+            mongoose_1.MongooseModule.forRoot(process.env.MONGO_URI || '', { autoCreate: true }),
             auth_module_1.AuthModule,
+            orders_module_1.OrdersModule,
+            order_status_module_1.OrderStatusModule,
+            payments_module_1.PaymentsModule,
+            webhook_module_1.WebhookModule,
+            transactions_module_1.TransactionsModule,
         ],
     })
 ], AppModule);

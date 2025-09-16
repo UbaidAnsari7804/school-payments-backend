@@ -1,0 +1,134 @@
+// src/transactions/transactions.service.ts
+import { Injectable } from '@nestjs/common';
+import { Model } from 'mongoose';
+import { InjectModel } from '@nestjs/mongoose';
+
+@Injectable()
+export class TransactionsService {
+  constructor(
+    @InjectModel('OrderStatus') private orderStatusModel: Model<any>,
+    @InjectModel('Order') private orderModel: Model<any>,
+  ) {}
+
+  // Aggregated transactions with pagination, sort, filter
+  async getTransactions({ page = 1, limit = 10, status, school_id, sort = 'payment_time', order = 'desc', from, to, search }) {
+    const skip = (page - 1) * limit;
+    const match: any = {};
+    if (status) match['status'] = status;
+    if (from || to) {
+      match['payment_time'] = {};
+      if (from) match['payment_time']['$gte'] = new Date(from);
+      if (to) match['payment_time']['$lte'] = new Date(to);
+    }
+    if (search) {
+      match['$or'] = [
+        { custom_order_id: { $regex: search, $options: 'i' } },
+        { collect_id: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const pipeline: any[] = [
+      { $match: match },
+      {
+        $lookup: {
+          from: this.orderModel.collection.name,
+          localField: 'collect_id',
+          foreignField: '_id',
+          as: 'order',
+        },
+      },
+      { $unwind: { path: '$order', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          collect_id: 1,
+          order_amount: 1,
+          transaction_amount: 1,
+          payment_mode: 1,
+          bank_reference: 1,
+          payment_message: 1,
+          status: 1,
+          error_message: 1,
+          payment_time: 1,
+          custom_order_id: '$order.custom_order_id',
+          school_id: '$order.school_id',
+          gateway: '$order.gateway_name',
+        },
+      },
+    ];
+
+    const sortDir = order === 'asc' ? 1 : -1;
+    const sortObj: any = {};
+    sortObj[sort] = sortDir;
+    pipeline.push({ $sort: sortObj });
+
+    pipeline.push({ $skip: skip }, { $limit: parseInt(String(limit), 10) });
+
+    // cast pipeline to any to satisfy TS typing for aggregate
+    const items = await (this.orderStatusModel.aggregate(pipeline as any) as any).exec();
+
+    // count total (without pagination)
+    const countPipeline = pipeline.slice(0, -2);
+    countPipeline.push({ $count: 'total' });
+    const countRes = await (this.orderStatusModel.aggregate(countPipeline as any) as any).exec();
+    const total = (countRes[0] && countRes[0].total) || 0;
+
+    return { data: items, page, limit, total };
+  }
+
+  async getBySchool(schoolId: string) {
+    const pipeline: any[] = [
+      {
+        $lookup: {
+          from: this.orderModel.collection.name,
+          localField: 'collect_id',
+          foreignField: '_id',
+          as: 'order',
+        },
+      },
+      { $unwind: { path: '$order', preserveNullAndEmptyArrays: true } },
+      { $match: { 'order.school_id': schoolId } },
+      {
+        $project: {
+          collect_id: 1,
+          order_amount: 1,
+          transaction_amount: 1,
+          status: 1,
+          custom_order_id: '$order.custom_order_id',
+          school_id: '$order.school_id',
+          gateway: '$order.gateway_name',
+          payment_time: 1,
+        },
+      },
+      { $sort: { payment_time: -1 } },
+    ];
+    return (this.orderStatusModel.aggregate(pipeline as any) as any).exec();
+  }
+
+  async getStatusByCustom(customId: string) {
+    const pipeline: any[] = [
+      {
+        $lookup: {
+          from: this.orderModel.collection.name,
+          localField: 'collect_id',
+          foreignField: '_id',
+          as: 'order',
+        },
+      },
+      { $unwind: { path: '$order', preserveNullAndEmptyArrays: true } },
+      { $match: { 'order.custom_order_id': customId } },
+      {
+        $project: {
+          collect_id: 1,
+          order_amount: 1,
+          transaction_amount: 1,
+          status: 1,
+          custom_order_id: '$order.custom_order_id',
+          school_id: '$order.school_id',
+          payment_time: 1,
+        },
+      },
+    ];
+    const res = await (this.orderStatusModel.aggregate(pipeline as any) as any).exec();
+    return res[0] || null;
+  }
+}
