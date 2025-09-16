@@ -245,13 +245,3 @@ git commit -m "Remove node_modules and .env from repo"
 MIT — feel free to reuse and adapt this code for your project.
 
 ---
-
-## ✉️ Need help?
-
-If you want, I can:
-
-* generate an importable Postman collection with all requests,
-* produce a `docker-compose.yml` for local testing, or
-* prepare instructions for deploying with PM2 + NGINX on an Ubuntu server.
-
-Say which one you want next and I’ll provide it ready to paste.
